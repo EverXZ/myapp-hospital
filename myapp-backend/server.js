@@ -7,26 +7,23 @@ const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(cors()); // Permite conectar con Vite
+app.use(cors());
 app.use(bodyParser.json());
 
 const database_config = {
     host: 'localhost',
     user: 'root',
     password: 'root',
-    database: 'hospital_pre'
+    database: 'consultorio_db'
 };
-
 
 // --- CONEXIÓN A BASE DE DATOS ---
 const db = mysql.createConnection({
     host: database_config.host,
     user: database_config.user,
-    password: database_config.password,   // <--- ASEGÚRATE QUE ESTA SEA TU CONTRASEÑA REAL DE WORKBENCH
-    database: database_config.database // <--- CORREGIDO: Debe coincidir con el nombre en MySQL Workbench
+    password: database_config.password,
+    database: database_config.database
 });
-
-// Eliminado el "++" que causaba el error aquí
 
 db.connect(err => {
     if (err) {
@@ -36,172 +33,256 @@ db.connect(err => {
     console.log(`Conectado a la Base de Datos: ${database_config.database}`);
 });
 
-//! EndPoints: Punto de intercambio de datos.
+// ==========================================
+// 1. AUTHENTICATION (Login & Register)
+// ==========================================
 
-//? Pacientes
-
-// 1. Obtener todos los pacientes
-app.get('/api/pacientes', (req, res) => {
-    const sql = 'SELECT * FROM paciente ORDER BY id_paciente DESC';
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
-});
-
-// 2. Crear un nuevo paciente
-app.post('/api/pacientes', (req, res) => {
-    const { nombre_completo, dni, fecha_nacimiento, telefono, email } = req.body;
-    const sql = 'INSERT INTO paciente (nombre_completo, dni, fecha_nacimiento, telefono, email) VALUES (?, ?, ?, ?, ?)';
+// Login
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const sql = 'SELECT * FROM usuario WHERE username = ? AND password = ?';
     
-    db.query(sql, [nombre_completo, dni, fecha_nacimiento, telefono, email], (err, result) => {
+    db.query(sql, [username, password], (err, results) => {
         if (err) return res.status(500).send(err);
-        res.json({ id: result.insertId, message: 'Paciente creado exitosamente' });
+        
+        if (results.length > 0) {
+            const user = results[0];
+            // Fetch specific role details
+            let roleQuery = '';
+            let roleIdField = '';
+            
+            if (user.rol === 'Paciente') {
+                roleQuery = 'SELECT * FROM paciente WHERE id_usuario = ?';
+                roleIdField = 'id_paciente';
+            } else if (user.rol === 'Medico') {
+                roleQuery = 'SELECT * FROM medico WHERE id_usuario = ?';
+                roleIdField = 'id_medico';
+            } else {
+                // Admin
+                return res.json({ message: 'Login exitoso', user: { ...user, id_rol: null } });
+            }
+
+            db.query(roleQuery, [user.id_usuario], (errRole, roleResults) => {
+                if (errRole) return res.status(500).send(errRole);
+                const roleData = roleResults[0];
+                res.json({ 
+                    message: 'Login exitoso', 
+                    user: { 
+                        ...user, 
+                        [roleIdField]: roleData ? roleData[roleIdField] : null,
+                        nombre_completo: roleData ? roleData.nombre_completo : 'Admin'
+                    } 
+                });
+            });
+        } else {
+            res.status(401).json({ message: 'Credenciales inválidas' });
+        }
     });
 });
 
-//? Medicos
-
-// 3. Obtener todos los médicos
-app.get('/api/medicos', (req, res) => {
-    const sql = 'SELECT * FROM medico ORDER BY id_medico DESC';
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
-});
-
-// 4. Crear un nuevo médico
-app.post('/api/medicos', (req, res) => {
-    const { nombre_completo, especialidad, numero_licencia, telefono, email } = req.body;
-    const sql = 'INSERT INTO medico (nombre_completo, especialidad, numero_licencia, telefono, email) VALUES (?, ?, ?, ?, ?)';
+// Register (Patient) using Stored Procedure
+app.post('/api/register', (req, res) => {
+    const { nombre, dni, email, password } = req.body;
+    const sql = 'CALL sp_registrar_paciente_usuario(?, ?, ?, ?)';
     
-    db.query(sql, [nombre_completo, especialidad, numero_licencia, telefono, email], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.json({ id: result.insertId, message: 'Médico creado exitosamente' });
+    db.query(sql, [nombre, dni, email, password], (err, result) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ error: err.sqlMessage || 'Error al registrar' });
+        }
+        res.json({ message: 'Paciente registrado exitosamente' });
     });
 });
 
-//? Citas
+// ==========================================
+// 2. PACIENTES (User Portal)
+// ==========================================
 
-// 5. Obtener citas (con nombres de pacientes y médicos)
-app.get('/api/citas', (req, res) => {
+// Get My Treatments (Processes)
+app.get('/api/pacientes/:id/tratamientos', (req, res) => {
+    const { id } = req.params; // id_paciente
     const sql = `
-        SELECT c.id_cita, c.fecha_hora, c.motivo, c.estado, 
-               p.nombre_completo AS paciente, 
-               m.nombre_completo AS medico
+        SELECT tp.*, m.nombre_completo as medico
+        FROM tratamiento_proceso tp
+        JOIN medico m ON tp.id_medico = m.id_medico
+        WHERE tp.id_paciente = ?
+        ORDER BY tp.fecha_inicio DESC
+    `;
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Get My Appointments
+app.get('/api/pacientes/:id/citas', (req, res) => {
+    const { id } = req.params; // id_paciente
+    const sql = `
+        SELECT c.*, m.nombre_completo as medico, tp.nombre_tratamiento
+        FROM cita c
+        JOIN medico m ON c.id_medico = m.id_medico
+        LEFT JOIN tratamiento_proceso tp ON c.id_proceso = tp.id_proceso
+        WHERE c.id_paciente = ?
+        ORDER BY c.fecha_hora DESC
+    `;
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// ==========================================
+// 3. MEDICOS (Doctor Portal)
+// ==========================================
+
+// Get My Patients (Distinct)
+app.get('/api/medicos/:id/pacientes', (req, res) => {
+    const { id } = req.params; // id_medico
+    const sql = `
+        SELECT DISTINCT p.* 
+        FROM tratamiento_proceso tp
+        JOIN paciente p ON tp.id_paciente = p.id_paciente
+        WHERE tp.id_medico = ?
+    `;
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Get My Treatments (All)
+app.get('/api/medicos/:id/tratamientos', (req, res) => {
+    const { id } = req.params;
+    const sql = `
+        SELECT tp.*, p.nombre_completo as paciente
+        FROM tratamiento_proceso tp
+        JOIN paciente p ON tp.id_paciente = p.id_paciente
+        WHERE tp.id_medico = ?
+        ORDER BY tp.fecha_inicio DESC
+    `;
+    db.query(sql, [id], (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Start New Treatment Process
+app.post('/api/tratamientos', (req, res) => {
+    const { id_paciente, id_medico, nombre_tratamiento, fecha_inicio } = req.body;
+    const sql = 'INSERT INTO tratamiento_proceso (id_paciente, id_medico, nombre_tratamiento, fecha_inicio) VALUES (?, ?, ?, ?)';
+    db.query(sql, [id_paciente, id_medico, nombre_tratamiento, fecha_inicio], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: 'Tratamiento iniciado', id: result.insertId });
+    });
+});
+
+// Get All Treatment Processes (for Admin)
+app.get('/api/tratamientos/procesos', (req, res) => {
+    const sql = `
+        SELECT tp.*, p.nombre_completo as paciente, m.nombre_completo as medico
+        FROM tratamiento_proceso tp
+        JOIN paciente p ON tp.id_paciente = p.id_paciente
+        JOIN medico m ON tp.id_medico = m.id_medico
+        ORDER BY tp.fecha_inicio DESC
+    `;
+    db.query(sql, (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Finalize Treatment (Request or Action)
+app.put('/api/tratamientos/:id/estado', (req, res) => {
+    const { id } = req.params;
+    const { estado, observaciones } = req.body;
+    const sql = 'UPDATE tratamiento_proceso SET estado = ?, observaciones_finales = ? WHERE id_proceso = ?';
+    db.query(sql, [estado, observaciones, id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: 'Estado de tratamiento actualizado' });
+    });
+});
+
+// ==========================================
+// 4. CITAS & HISTORIA CLINICA
+// ==========================================
+
+// Create Appointment
+app.post('/api/citas', (req, res) => {
+    const { fecha_hora, motivo, id_paciente, id_medico, id_proceso } = req.body;
+    const sql = 'INSERT INTO cita (fecha_hora, motivo, id_paciente, id_medico, id_proceso) VALUES (?, ?, ?, ?, ?)';
+    db.query(sql, [fecha_hora, motivo, id_paciente, id_medico, id_proceso], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: 'Cita agendada', id: result.insertId });
+    });
+});
+
+// Get Appointments (General or filtered)
+app.get('/api/citas', (req, res) => {
+    const { id_medico, fecha } = req.query;
+    let sql = `
+        SELECT c.*, p.nombre_completo as paciente, m.nombre_completo as medico 
         FROM cita c
         JOIN paciente p ON c.id_paciente = p.id_paciente
         JOIN medico m ON c.id_medico = m.id_medico
-        ORDER BY c.fecha_hora ASC
+        WHERE 1=1
     `;
-    db.query(sql, (err, results) => {
+    const params = [];
+    if (id_medico) {
+        sql += ' AND c.id_medico = ?';
+        params.push(id_medico);
+    }
+    if (fecha) {
+        sql += ' AND DATE(c.fecha_hora) = ?';
+        params.push(fecha);
+    }
+    sql += ' ORDER BY c.fecha_hora ASC';
+
+    db.query(sql, params, (err, results) => {
         if (err) return res.status(500).send(err);
         res.json(results);
     });
 });
 
-// 6. Crear nueva cita
-app.post('/api/citas', (req, res) => {
-    const { fecha_hora, motivo, id_paciente, id_medico } = req.body;
-    const sql = 'INSERT INTO cita (fecha_hora, motivo, id_paciente, id_medico) VALUES (?, ?, ?, ?)';
-    
-    db.query(sql, [fecha_hora, motivo, id_paciente, id_medico], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.json({ message: 'Cita agendada correctamente', id: result.insertId });
-    });
-});
-
-//? Tratamientos
-
-// 7. Obtener lista de tratamientos
-app.get('/api/tratamientos', (req, res) => {
-    const sql = 'SELECT * FROM tratamiento ORDER BY nombre ASC';
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
-});
-
-// 8. Crear nuevo tratamiento
-app.post('/api/tratamientos', (req, res) => {
-    const { nombre, descripcion, costo } = req.body;
-    const sql = 'INSERT INTO tratamiento (nombre, descripcion, costo) VALUES (?, ?, ?)';
-    
-    db.query(sql, [nombre, descripcion, costo], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.json({ message: 'Tratamiento creado', id: result.insertId });
-    });
-});
-
-//? Consulta de Historia Clinica
-
-// 9. Obtener citas PENDIENTES (Para que el médico elija cuál atender)
-app.get('/api/citas/pendientes', (req, res) => {
-    const sql = `
-        SELECT c.id_cita, c.fecha_hora, p.nombre_completo as paciente 
-        FROM cita c
-        JOIN paciente p ON c.id_paciente = p.id_paciente
-        WHERE c.estado = 'Pendiente'
-        ORDER BY c.fecha_hora ASC
-    `;
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
-});
-
-// 10. Guardar Consulta Completa (Con Tratamientos y Recetas)
+// Save Consultation (Historia Clinica)
 app.post('/api/consultas', (req, res) => {
-    // AHORA RECIBIMOS TAMBIÉN "recetas"
-
-    const { id_cita, diagnostico, observaciones, tratamientos, recetas } = req.body;
-
-    // Paso A: Insertar la Historia Clínica
-    const sqlHistoria = 'INSERT INTO historia_clinica (id_cita, diagnostico, observaciones) VALUES (?, ?, ?)';
+    const { id_cita, diagnostico, observaciones, recetas } = req.body;
     
-    db.query(sqlHistoria, [id_cita, diagnostico, observaciones], (err, resultHistoria) => {
+    const sql = 'INSERT INTO historia_clinica (id_cita, diagnostico, observaciones) VALUES (?, ?, ?)';
+    db.query(sql, [id_cita, diagnostico, observaciones], (err, result) => {
         if (err) return res.status(500).send(err);
         
-        const id_historia = resultHistoria.insertId;
+        const id_historia = result.insertId;
 
-        // Paso B: Marcar la Cita como 'Completada'
+        // Update Cita status
         db.query('UPDATE cita SET estado = "Completada" WHERE id_cita = ?', [id_cita]);
-
-        // Paso C: Insertar los tratamientos seleccionados (si hay)
-        if (tratamientos && tratamientos.length > 0) {
-            const values = tratamientos.map(id_trat => [id_historia, id_trat]);
-            const sqlDetalle = 'INSERT INTO historia_tratamiento (id_historia, id_tratamiento) VALUES ?';
-            
-            db.query(sqlDetalle, [values], (errDetalle) => {
-                if (errDetalle) console.error("Error guardando tratamientos:", errDetalle);
-            });
-        }
-
-        // Paso D: GUARDAR RECETAS Y DESCONTAR STOCK (NUEVO)
+        
+        // Save Recetas (if any)
         if (recetas && recetas.length > 0) {
-            const valuesReceta = recetas.map(r => [id_historia, r.id_medicamento, r.dosis, r.cantidad]);
-            
-            // 1. Insertar en tabla receta_medica
-            db.query('INSERT INTO receta_medica (id_historia, id_medicamento, dosis, cantidad) VALUES ?', [valuesReceta], (errReceta) => {
+            const values = recetas.map(r => [id_historia, r.id_medicamento, r.dosis, r.cantidad]);
+            // Insert into receta_medica (assuming table exists now)
+            const sqlReceta = 'INSERT INTO receta_medica (id_historia, id_medicamento, dosis, cantidad) VALUES ?';
+            db.query(sqlReceta, [values], (errReceta) => {
                 if(errReceta) console.error("Error guardando receta:", errReceta);
-
-                // 2. Actualizar Stock (Restar inventario)
+                
+                // Update Stock
                 recetas.forEach(r => {
                     db.query('UPDATE medicamento SET stock = stock - ? WHERE id_medicamento = ?', [r.cantidad, r.id_medicamento]);
                 });
             });
         }
 
-        res.json({ message: 'Consulta y Receta guardadas con éxito', id_historia });
+        res.json({ message: 'Consulta guardada', id: result.insertId });
     });
 });
 
-//? Facturas
+// ==========================================
+// 5. ADMIN & FACTURACION
+// ==========================================
 
-// ==========================================
-// 6. MÓDULO DE FACTURACIÓN (CORREGIDO)
-// ==========================================
+// Get All Users/Doctors/Patients (for Admin)
+app.get('/api/usuarios', (req, res) => {
+    db.query('SELECT * FROM usuario', (err, results) => res.json(results));
+});
 
 // A. Ver citas listas para cobrar (SOLO las 'Completada')
 app.get('/api/facturas/pendientes', (req, res) => {
@@ -210,8 +291,64 @@ app.get('/api/facturas/pendientes', (req, res) => {
         FROM cita c
         JOIN paciente p ON c.id_paciente = p.id_paciente
         JOIN medico m ON c.id_medico = m.id_medico
-        WHERE c.estado = 'Completada'  -- Solo las que el médico cerró pero no se han cobrado
+        WHERE c.estado = 'Completada'
         ORDER BY c.fecha_hora DESC
+    `;
+    db.query(sql, (err, results) => {
+        res.json(results);
+    });
+});
+
+// B. Generar Factura
+app.post('/api/facturas/generar', (req, res) => {
+    const { id_cita, id_paciente } = req.body;
+    
+    // Simple logic: Fixed cost or calculate from services if implemented.
+    // For now, let's assume a fixed cost of $50 for consultation.
+    const total = 50.00;
+
+    const sql = 'INSERT INTO factura (id_paciente, total) VALUES (?, ?)';
+    db.query(sql, [id_paciente, total], (err, result) => {
+        if (err) return res.status(500).send(err);
+        const id_factura = result.insertId;
+
+        // Update Cita status to 'Facturada'
+        db.query('UPDATE cita SET estado = "Facturada" WHERE id_cita = ?', [id_cita]);
+
+        res.json({ message: 'Factura generada', id: result.insertId, total });
+    });
+});
+
+// Get Inventory (Meds & Equipment)
+app.get('/api/inventario/medicamentos', (req, res) => {
+    db.query('SELECT * FROM medicamento', (err, results) => res.json(results));
+});
+app.get('/api/inventario/equipos', (req, res) => {
+    db.query('SELECT * FROM equipo_medico', (err, results) => res.json(results));
+});
+
+// ==========================================
+// 6. LABORATORIO
+// ==========================================
+
+// Create Lab Order
+app.post('/api/laboratorio', (req, res) => {
+    const { id_cita, tipo_examen } = req.body;
+    const sql = 'INSERT INTO orden_laboratorio (id_cita, tipo_examen) VALUES (?, ?)';
+    db.query(sql, [id_cita, tipo_examen], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: 'Orden de laboratorio creada', id: result.insertId });
+    });
+});
+
+// Get Lab Orders
+app.get('/api/laboratorio', (req, res) => {
+    const sql = `
+        SELECT ol.*, p.nombre_completo as paciente 
+        FROM orden_laboratorio ol
+        JOIN cita c ON ol.id_cita = c.id_cita
+        JOIN paciente p ON c.id_paciente = p.id_paciente
+        ORDER BY ol.fecha_orden DESC
     `;
     db.query(sql, (err, results) => {
         if (err) return res.status(500).send(err);
@@ -219,54 +356,72 @@ app.get('/api/facturas/pendientes', (req, res) => {
     });
 });
 
-// B. Generar Factura y MOVER A HISTORIAL
-app.post('/api/facturas/generar', (req, res) => {
-    const { id_cita, id_paciente } = req.body;
-
-    // 1. Calcular total
-    const sqlItems = `
-        SELECT t.nombre, t.costo 
-        FROM historia_clinica hc
-        JOIN historia_tratamiento ht ON hc.id_historia = ht.id_historia
-        JOIN tratamiento t ON ht.id_tratamiento = t.id_tratamiento
-        WHERE hc.id_cita = ?
-    `;
-
-    db.query(sqlItems, [id_cita], (err, items) => {
+// Update Lab Result
+app.put('/api/laboratorio/:id', (req, res) => {
+    const { id } = req.params;
+    const { resultados } = req.body;
+    const sql = 'UPDATE orden_laboratorio SET resultados = ?, estado = "Entregado", fecha_resultado = NOW() WHERE id_orden = ?';
+    db.query(sql, [resultados, id], (err, result) => {
         if (err) return res.status(500).send(err);
+        res.json({ message: 'Resultados actualizados' });
+    });
+});
 
-        let total = 0;
-        items.forEach(item => total += parseFloat(item.costo));
-        if (total === 0) total = 50.00; 
+// ==========================================
+// 7. ADMIN EXTENSIONS
+// ==========================================
 
-        // 2. Crear la Factura
-        const sqlFactura = 'INSERT INTO factura (id_paciente, total) VALUES (?, ?)';
-        db.query(sqlFactura, [id_paciente, total], (err, resultFact) => {
-            if (err) return res.status(500).send(err);
-            const id_factura = resultFact.insertId;
+// Create User (Admin) - Handles both Patient and Doctor
+app.post('/api/admin/crear_usuario', (req, res) => {
+    const { nombre, dni, email, password, rol, especialidad } = req.body;
+    
+    // 1. Create User
+    const sqlUser = 'INSERT INTO usuario (username, password, rol) VALUES (?, ?, ?)';
+    db.query(sqlUser, [email, password, rol], (err, result) => {
+        if (err) return res.status(500).json({ error: 'Error creando usuario: ' + err.message });
+        const id_usuario = result.insertId;
 
-            // 3. Guardar detalle
-            if (items.length > 0) {
-                const values = items.map(i => [id_factura, i.nombre, i.costo]);
-                db.query('INSERT INTO detalle_factura (id_factura, concepto, precio_unitario) VALUES ?', [values]);
-            } else {
-                db.query('INSERT INTO detalle_factura (id_factura, concepto, precio_unitario) VALUES (?, ?, ?)', 
-                [id_factura, 'Consulta Médica Estándar', 50.00]);
-            }
+        // 2. Create Specific Role Entry
+        let sqlRole = '';
+        let params = [];
 
-            // 4. CRÍTICO: CAMBIAR ESTADO A 'Facturada'
-            // Esto hace que desaparezca de la lista de pendientes
-            db.query('UPDATE cita SET estado = "Facturada" WHERE id_cita = ?', [id_cita]);
+        if (rol === 'Paciente') {
+            sqlRole = 'INSERT INTO paciente (id_usuario, nombre_completo, dni, email) VALUES (?, ?, ?, ?)';
+            params = [id_usuario, nombre, dni, email];
+        } else if (rol === 'Medico') {
+            sqlRole = 'INSERT INTO medico (id_usuario, nombre_completo, especialidad, email) VALUES (?, ?, ?, ?)';
+            params = [id_usuario, nombre, especialidad || 'General', email];
+        } else {
+            return res.json({ message: 'Usuario Admin creado (sin perfil extra)' });
+        }
 
-            res.json({ message: 'Factura Generada', id_factura, total });
+        db.query(sqlRole, params, (errRole, resultRole) => {
+            if (errRole) return res.status(500).json({ error: 'Error creando perfil: ' + errRole.message });
+            res.json({ message: `${rol} creado exitosamente` });
         });
     });
 });
 
-// C. Ver Historial de Facturas (YA COBRADAS)
+// Get All Patients (for Admin)
+app.get('/api/pacientes', (req, res) => {
+    db.query('SELECT * FROM paciente', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Get All Doctors (for Admin)
+app.get('/api/medicos', (req, res) => {
+    db.query('SELECT * FROM medico', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Billing History
 app.get('/api/facturas/historial', (req, res) => {
     const sql = `
-        SELECT f.id_factura, f.fecha_emision, f.total, p.nombre_completo as paciente
+        SELECT f.*, p.nombre_completo as paciente 
         FROM factura f
         JOIN paciente p ON f.id_paciente = p.id_paciente
         ORDER BY f.fecha_emision DESC
@@ -277,53 +432,31 @@ app.get('/api/facturas/historial', (req, res) => {
     });
 });
 
-//? Modulo de Farmacia
-
-// A. Obtener inventario de medicamentos
-app.get('/api/medicamentos', (req, res) => {
-    db.query('SELECT * FROM medicamento ORDER BY nombre ASC', (err, results) => {
-        if (err) return res.status(500).send(err);
-        res.json(results);
-    });
-});
-
-// B. Crear nuevo medicamento (Ingreso de inventario)
-app.post('/api/medicamentos', (req, res) => {
-    const { nombre, principio_activo, stock, precio_unitario } = req.body;
-    db.query('INSERT INTO medicamento (nombre, principio_activo, stock, precio_unitario) VALUES (?, ?, ?, ?)', 
-    [nombre, principio_activo, stock, precio_unitario], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.json({ id: result.insertId, message: 'Medicamento registrado' });
-    });
-});
-
-// C. Guardar Receta (Vinculada a una Historia Clínica existente)
-// Nota: Normalmente esto se haría EN el momento de la consulta, pero lo haremos aparte por simplicidad.
-app.post('/api/recetas', (req, res) => {
-    const { id_historia, items } = req.body; 
-    // items es un array: [{id_medicamento: 1, dosis: "1 cada 8h", cantidad: 2}, ...]
-
-    if (!items || items.length === 0) return res.status(400).send("No hay medicamentos");
-
-    const values = items.map(i => [id_historia, i.id_medicamento, i.dosis, i.cantidad]);
+// Inventory Re-stock
+app.put('/api/inventario/:type/:id', (req, res) => {
+    const { type, id } = req.params; // type: 'medicamento' or 'equipo'
+    const { cantidad } = req.body; // Quantity to ADD
     
-    // 1. Insertar la receta
-    const sqlInsert = 'INSERT INTO receta_medica (id_historia, id_medicamento, dosis, cantidad) VALUES ?';
-    db.query(sqlInsert, [values], (err, result) => {
+    let table = '';
+    let idField = '';
+    if (type === 'medicamento') {
+        table = 'medicamento';
+        idField = 'id_medicamento';
+    } else if (type === 'equipo') {
+        table = 'equipo_medico';
+        idField = 'id_equipo';
+    } else {
+        return res.status(400).json({ error: 'Tipo inválido' });
+    }
+
+    const sql = `UPDATE ${table} SET stock = stock + ? WHERE ${idField} = ?`;
+    db.query(sql, [cantidad, id], (err, result) => {
         if (err) return res.status(500).send(err);
-
-        // 2. ACTUALIZAR STOCK (Disminuir inventario)
-        // Recorremos los items para restar el stock uno por uno (simple approach)
-        items.forEach(item => {
-            db.query('UPDATE medicamento SET stock = stock - ? WHERE id_medicamento = ?', 
-            [item.cantidad, item.id_medicamento]);
-        });
-
-        res.json({ message: 'Receta guardada y stock actualizado' });
+        res.json({ message: 'Stock actualizado' });
     });
 });
 
-// Iniciar servidor
+
 app.listen(PORT, () => {
     console.log(`Servidor Backend corriendo en http://localhost:${PORT}`);
 });

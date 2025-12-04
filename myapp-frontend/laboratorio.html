@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-purple-600 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">Módulo de Laboratorio</h1>
+        <button onclick="window.location.href='login.html'" class="bg-white text-purple-600 px-3 py-1 rounded hover:bg-gray-100 text-sm">Salir</button>
+    </nav>
+
+    <div class="container mx-auto p-6">
+        
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Órdenes de Laboratorio</h2>
+            
+            <!-- Simulación de creación de orden (Normalmente lo haría el médico) -->
+            <div class="mb-6 p-4 bg-gray-50 rounded border">
+                <h3 class="font-semibold text-sm text-gray-700 mb-2">Nueva Orden (Simulación)</h3>
+                <form id="labForm" class="flex gap-2">
+                    <input type="number" id="idCitaLab" placeholder="ID Cita" class="p-2 border rounded text-sm" required>
+                    <input type="text" id="tipoExamen" placeholder="Tipo Examen (ej: Sangre)" class="p-2 border rounded text-sm flex-1" required>
+                    <button type="submit" class="bg-purple-600 text-white px-4 py-1 rounded text-sm hover:bg-purple-700">Crear Orden</button>
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2">ID Orden</th>
+                            <th class="px-4 py-2">Examen</th>
+                            <th class="px-4 py-2">Estado</th>
+                            <th class="px-4 py-2">Resultados</th>
+                            <th class="px-4 py-2">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordenesList">
+                        <!-- Items -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Nota: Este módulo podría ser accesible por Admin o un rol "Laboratorista".
+        // Por simplicidad, no restringimos acceso estricto aquí, pero idealmente sí.
+
+        async function loadData() {
+            try {
+                const res = await fetch('http://localhost:3000/api/laboratorio');
+                const ordenes = await res.json();
+                
+                const list = document.getElementById('ordenesList');
+                list.innerHTML = ordenes.length ? ordenes.map(o => `
+                    <tr class="bg-white border-b hover:bg-gray-50">
+                        <td class="px-4 py-2 font-medium text-gray-900">#${o.id_orden}</td>
+                        <td class="px-4 py-2">${o.tipo_examen} <br> <span class="text-xs text-gray-500">${o.paciente}</span></td>
+                        <td class="px-4 py-2">
+                            <span class="px-2 py-1 text-xs rounded ${
+                                o.estado === 'Solicitado' ? 'bg-yellow-100 text-yellow-800' : 
+                                o.estado === 'Procesando' ? 'bg-blue-100 text-blue-800' : 
+                                'bg-green-100 text-green-800'}">
+                                ${o.estado}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-600 truncate max-w-xs" title="${o.resultados || ''}">
+                            ${o.resultados || '-'}
+                        </td>
+                        <td class="px-4 py-2">
+                            ${o.estado !== 'Entregado' ? `
+                                <button onclick="ingresarResultados(${o.id_orden})" class="text-purple-600 hover:underline text-xs">Ingresar Resultados</button>
+                            ` : '<span class="text-gray-400 text-xs">Completado</span>'}
+                        </td>
+                    </tr>
+                `).join('') : '<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">No hay órdenes registradas.</td></tr>';
+            } catch (error) {
+                console.error(error);
+                document.getElementById('ordenesList').innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-red-500">Error al cargar datos.</td></tr>';
+            }
+        }
+
+        async function ingresarResultados(idOrden) {
+            const resultados = prompt("Ingrese los resultados del examen:");
+            if (!resultados) return;
+
+            try {
+                const res = await fetch(`http://localhost:3000/api/laboratorio/${idOrden}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resultados })
+                });
+
+                if (res.ok) {
+                    alert('Resultados guardados');
+                    loadData();
+                } else {
+                    alert('Error al guardar');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        document.getElementById('labForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id_cita = document.getElementById('idCitaLab').value;
+            const tipo_examen = document.getElementById('tipoExamen').value;
+
+            try {
+                const res = await fetch('http://localhost:3000/api/laboratorio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_cita, tipo_examen })
+                });
+                if(res.ok) {
+                    alert('Orden creada');
+                    // loadData();
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        });
+    </script>
+
+</body>
+</html>

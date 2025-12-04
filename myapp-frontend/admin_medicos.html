@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Médicos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-gray-800 text-white p-4 shadow-md flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <a href="dashboard_admin.html" class="text-gray-300 hover:text-white">← Volver</a>
+            <h1 class="text-xl font-bold">Gestión de Médicos</h1>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Formulario Registro -->
+        <div class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Registrar Nuevo Médico</h2>
+                <form id="createDoctorForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                        <input type="text" id="nombre" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Especialidad</label>
+                        <input type="text" id="especialidad" class="w-full p-2 border rounded" placeholder="Ej: Cardiología" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Email (Usuario)</label>
+                        <input type="email" id="email" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Contraseña</label>
+                        <input type="password" id="password" class="w-full p-2 border rounded" required>
+                    </div>
+                    <button type="submit" class="w-full bg-teal-600 text-white py-2 rounded hover:bg-teal-700">Registrar Médico</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de Médicos -->
+        <div class="lg:col-span-2">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Staff Médico</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3">ID</th>
+                                <th class="px-4 py-3">Nombre</th>
+                                <th class="px-4 py-3">Especialidad</th>
+                                <th class="px-4 py-3">Email</th>
+                            </tr>
+                        </thead>
+                        <tbody id="doctorsList">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        async function loadDoctors() {
+            try {
+                // Need endpoint to fetch all doctors.
+                // Assuming GET /api/medicos
+                const res = await fetch('http://localhost:3000/api/medicos'); 
+                if(res.ok) {
+                    const doctors = await res.json();
+                    renderDoctors(doctors);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function renderDoctors(list) {
+            const tbody = document.getElementById('doctorsList');
+            tbody.innerHTML = list.map(d => `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-4 py-3">${d.id_medico}</td>
+                    <td class="px-4 py-3 font-medium text-gray-900">${d.nombre_completo}</td>
+                    <td class="px-4 py-3">${d.especialidad}</td>
+                    <td class="px-4 py-3">${d.email}</td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('createDoctorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                nombre: document.getElementById('nombre').value,
+                especialidad: document.getElementById('especialidad').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                rol: 'Medico'
+            };
+
+            try {
+                const res = await fetch('http://localhost:3000/api/admin/crear_usuario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) {
+                    alert('Médico registrado');
+                    document.getElementById('createDoctorForm').reset();
+                    loadDoctors();
+                } else {
+                    alert('Error al registrar');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
+        loadDoctors();
+    </script>
+</body>
+</html>

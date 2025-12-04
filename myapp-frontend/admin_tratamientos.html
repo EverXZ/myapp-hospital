@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Tratamientos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-gray-800 text-white p-4 shadow-md flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <a href="dashboard_admin.html" class="text-gray-300 hover:text-white">← Volver</a>
+            <h1 class="text-xl font-bold">Gestión de Tratamientos</h1>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Crear Tratamiento -->
+        <div class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Iniciar Tratamiento</h2>
+                <form id="createTratamientoForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Paciente</label>
+                        <select id="pacienteSelect" class="w-full p-2 border rounded" required>
+                            <option value="">Cargando...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Médico Responsable</label>
+                        <select id="medicoSelect" class="w-full p-2 border rounded" required>
+                            <option value="">Cargando...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nombre del Tratamiento</label>
+                        <input type="text" id="nombreTrat" class="w-full p-2 border rounded" placeholder="Ej: Rehabilitación" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 text-white py-2 rounded hover:bg-purple-700">Iniciar Tratamiento</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de Tratamientos -->
+        <div class="lg:col-span-2">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Procesos Activos</h2>
+                <div id="tratamientosList" class="space-y-3 max-h-96 overflow-y-auto">
+                    <p class="text-gray-500">Cargando...</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        async function loadData() {
+            // Load Patients & Doctors for Selects
+            const resPac = await fetch('http://localhost:3000/api/pacientes');
+            const pacientes = await resPac.json();
+            document.getElementById('pacienteSelect').innerHTML = '<option value="">Seleccionar Paciente...</option>' + 
+                pacientes.map(p => `<option value="${p.id_paciente}">${p.nombre_completo}</option>`).join('');
+
+            const resMed = await fetch('http://localhost:3000/api/medicos');
+            const medicos = await resMed.json();
+            document.getElementById('medicoSelect').innerHTML = '<option value="">Seleccionar Médico...</option>' + 
+                medicos.map(m => `<option value="${m.id_medico}">${m.nombre_completo}</option>`).join('');
+
+            // Load Treatments
+            const resTrat = await fetch('http://localhost:3000/api/tratamientos/procesos');
+            const tratamientos = await resTrat.json();
+            
+            document.getElementById('tratamientosList').innerHTML = tratamientos.length ? tratamientos.map(t => `
+                <div class="p-3 border rounded hover:bg-gray-50 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-gray-800">${t.nombre_tratamiento}</h3>
+                        <p class="text-sm text-gray-600">Pac: ${t.paciente} | Dr: ${t.medico}</p>
+                        <p class="text-xs text-blue-600 font-semibold">Estado: ${t.estado}</p>
+                    </div>
+                    ${t.estado !== 'Finalizado' ? 
+                        `<button onclick="finalizarTratamiento(${t.id_proceso})" class="bg-red-600 text-white text-xs px-3 py-1 rounded hover:bg-red-700">Finalizar</button>` 
+                        : '<span class="text-xs text-gray-400">Finalizado</span>'}
+                </div>
+            `).join('') : '<p class="text-gray-500">No hay tratamientos.</p>';
+        }
+
+        async function finalizarTratamiento(id) {
+            if(!confirm("¿Finalizar tratamiento?")) return;
+            try {
+                const res = await fetch(`http://localhost:3000/api/tratamientos/${id}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado: 'Finalizado', observaciones: 'Finalizado por Admin' })
+                });
+                if(res.ok) loadData();
+            } catch (error) { console.error(error); }
+        }
+
+        document.getElementById('createTratamientoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                id_paciente: document.getElementById('pacienteSelect').value,
+                id_medico: document.getElementById('medicoSelect').value,
+                nombre_tratamiento: document.getElementById('nombreTrat').value,
+                fecha_inicio: new Date().toISOString().split('T')[0]
+            };
+
+            try {
+                const res = await fetch('http://localhost:3000/api/tratamientos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if(res.ok) {
+                    alert('Tratamiento iniciado');
+                    document.getElementById('createTratamientoForm').reset();
+                    loadData();
+                }
+            } catch (error) { console.error(error); }
+        });
+
+        loadData();
+    </script>
+</body>
+</html>

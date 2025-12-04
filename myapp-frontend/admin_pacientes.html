@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Pacientes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-gray-800 text-white p-4 shadow-md flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <a href="dashboard_admin.html" class="text-gray-300 hover:text-white">← Volver</a>
+            <h1 class="text-xl font-bold">Gestión de Pacientes</h1>
+        </div>
+    </nav>
+
+    <div class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Formulario Registro -->
+        <div class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Registrar Nuevo Paciente</h2>
+                <form id="createPatientForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                        <input type="text" id="nombre" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">DNI</label>
+                        <input type="text" id="dni" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Email (Usuario)</label>
+                        <input type="email" id="email" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Contraseña</label>
+                        <input type="password" id="password" class="w-full p-2 border rounded" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Registrar Paciente</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Lista de Pacientes -->
+        <div class="lg:col-span-2">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-lg font-bold text-gray-800">Directorio de Pacientes</h2>
+                    <input type="text" id="searchDni" placeholder="Buscar por DNI..." class="p-2 border rounded text-sm" oninput="filterPatients()">
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3">ID</th>
+                                <th class="px-4 py-3">Nombre</th>
+                                <th class="px-4 py-3">DNI</th>
+                                <th class="px-4 py-3">Email</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientsList">
+                            <!-- Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let allPatients = [];
+
+        async function loadPatients() {
+            try {
+                const res = await fetch('http://localhost:3000/api/usuarios'); // Fetching all users, need to filter or use specific endpoint
+                // Actually, server.js has /api/usuarios returning 'usuario' table. 
+                // But 'usuario' table doesn't have Name/DNI directly (it's in 'paciente' table).
+                // I need an endpoint to get ALL patients with details.
+                // Current /api/usuarios is just 'usuario' table.
+                // I'll assume I need to fetch 'paciente' table directly or join.
+                // Let's check server.js... 
+                // I don't have a specific 'GET /api/pacientes' (all). I have 'GET /api/medicos/:id/pacientes' (distinct).
+                // I should add 'GET /api/pacientes' to server.js or use a raw query here if I could (I can't).
+                // I will add 'GET /api/pacientes' to server.js in next step. For now I'll write code expecting it.
+                
+                const resPac = await fetch('http://localhost:3000/api/pacientes'); // New Endpoint
+                if(resPac.ok) {
+                    allPatients = await resPac.json();
+                    renderPatients(allPatients);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function renderPatients(list) {
+            const tbody = document.getElementById('patientsList');
+            tbody.innerHTML = list.map(p => `
+                <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-4 py-3">${p.id_paciente}</td>
+                    <td class="px-4 py-3 font-medium text-gray-900">${p.nombre_completo}</td>
+                    <td class="px-4 py-3">${p.dni}</td>
+                    <td class="px-4 py-3">${p.email}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterPatients() {
+            const term = document.getElementById('searchDni').value.toLowerCase();
+            const filtered = allPatients.filter(p => p.dni.includes(term));
+            renderPatients(filtered);
+        }
+
+        document.getElementById('createPatientForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                nombre: document.getElementById('nombre').value,
+                dni: document.getElementById('dni').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                rol: 'Paciente'
+            };
+
+            try {
+                const res = await fetch('http://localhost:3000/api/admin/crear_usuario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) {
+                    alert('Paciente registrado');
+                    document.getElementById('createPatientForm').reset();
+                    loadPatients();
+                } else {
+                    alert('Error al registrar');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        });
+
+        loadPatients();
+    </script>
+</body>
+</html>
