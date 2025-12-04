@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Tratamientos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">💉 Catálogo de Tratamientos</h1>
+            <a href="index.html" class="text-blue-600 hover:underline flex items-center gap-1">
+                <span>&larr;</span> Volver al Inicio
+            </a>
+        </div>
+
+        <!-- Formulario de Registro -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-8 border-l-4 border-teal-500">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Registrar Nuevo Servicio</h2>
+            <form id="formTratamiento" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <input type="text" id="nombre" placeholder="Nombre del Procedimiento (Ej: Rayos X)" class="w-full border p-2 rounded focus:ring-2 focus:ring-teal-200 outline-none" required>
+                </div>
+                
+                <div class="md:col-span-2">
+                    <textarea id="descripcion" placeholder="Descripción breve..." class="w-full border p-2 rounded focus:ring-2 focus:ring-teal-200 outline-none" rows="2"></textarea>
+                </div>
+
+                <div>
+                    <input type="number" step="0.01" id="costo" placeholder="Costo ($)" class="w-full border p-2 rounded focus:ring-2 focus:ring-teal-200 outline-none" required>
+                </div>
+                
+                <button type="submit" class="bg-teal-600 text-white p-2 rounded hover:bg-teal-700 transition font-medium shadow-sm">
+                    Guardar Servicio
+                </button>
+            </form>
+        </div>
+
+        <!-- Tabla de Precios -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
+                <h3 class="font-bold text-gray-700">Lista de Precios</h3>
+                <span class="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">Precios base sin IVA</span>
+            </div>
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-teal-50 text-teal-800 text-sm uppercase">
+                    <tr>
+                        <th class="p-4">ID</th>
+                        <th class="p-4">Procedimiento</th>
+                        <th class="p-4">Descripción</th>
+                        <th class="p-4 text-right">Costo</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaTratamientos" class="text-gray-600 text-sm">
+                    <!-- JS llenará esto -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Lógica Javascript -->
+    <script type="module" src="src/js/tratamientos.js"> </script>
+</body>
+</html>
