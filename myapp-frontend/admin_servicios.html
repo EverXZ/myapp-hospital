@@ -5,60 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Servicios</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
+    <link href="src/css/glass.css" rel="stylesheet">
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="p-6">
 
-    <nav class="bg-gray-800 text-white p-4 shadow-md flex justify-between items-center">
+    <nav class="glass-panel p-4 rounded-xl flex justify-between items-center mb-6">
         <div class="flex items-center gap-4">
-            <a href="dashboard_admin.html" class="text-gray-300 hover:text-white">← Volver</a>
-            <h1 class="text-xl font-bold">Gestión de Servicios</h1>
+            <a href="dashboard_admin.html" class="text-blue-200 hover:text-white transition">← Volver</a>
+            <h1 class="text-xl font-bold text-white">Gestión de Servicios</h1>
         </div>
     </nav>
 
-    <div class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="container mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- Formulario Registro -->
+        <!-- Formulario Crear -->
         <div class="lg:col-span-1">
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Registrar Nuevo Servicio</h2>
+            <div class="glass-panel p-6 rounded-2xl">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-white/10 pb-2">Nuevo Servicio</h2>
                 <form id="createServiceForm" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Nombre del Servicio</label>
-                        <input type="text" id="nombre" class="w-full p-2 border rounded" required>
+                        <label class="block text-sm font-medium text-blue-100">Nombre del Servicio</label>
+                        <input type="text" id="nombre" class="glass-input w-full p-2 rounded mt-1" placeholder="Ej: Consulta General" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Descripción</label>
-                        <textarea id="descripcion" class="w-full p-2 border rounded" rows="3"></textarea>
+                        <label class="block text-sm font-medium text-blue-100">Descripción</label>
+                        <textarea id="descripcion" rows="3" class="glass-input w-full p-2 rounded mt-1" placeholder="Breve descripción..."></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Costo ($)</label>
-                        <input type="number" id="costo" step="0.01" class="w-full p-2 border rounded" required>
+                        <label class="block text-sm font-medium text-blue-100">Costo ($)</label>
+                        <input type="number" id="costo" step="0.01" class="glass-input w-full p-2 rounded mt-1" placeholder="0.00" required>
                     </div>
-                    <button type="submit" class="w-full bg-teal-600 text-white py-2 rounded hover:bg-teal-700">Crear Servicio</button>
+                    <button type="submit" class="glass-button w-full py-2 rounded hover:shadow-lg">Guardar Servicio</button>
                 </form>
             </div>
         </div>
 
-        <!-- Lista de Servicios -->
+        <!-- Lista Servicios -->
         <div class="lg:col-span-2">
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Catálogo de Servicios</h2>
+            <div class="glass-panel p-6 rounded-2xl">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-white/10 pb-2">Catálogo de Servicios</h2>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-500">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <table class="w-full text-sm text-left text-blue-100">
+                        <thead class="text-xs uppercase bg-white/10 text-white">
                             <tr>
-                                <th class="px-4 py-3">ID</th>
+                                <th class="px-4 py-3 rounded-tl-lg">ID</th>
                                 <th class="px-4 py-3">Nombre</th>
                                 <th class="px-4 py-3">Descripción</th>
                                 <th class="px-4 py-3">Costo</th>
-                                <th class="px-4 py-3">Acciones</th>
+                                <th class="px-4 py-3 rounded-tr-lg">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="servicesList">
-                            <!-- Rows -->
-                        </tbody>
+                        <tbody id="servicesList"></tbody>
                     </table>
                 </div>
             </div>
@@ -66,6 +63,6 @@
 
     </div>
 
-    <script src="src/js/admin_servicios.js"> </script>
+    <script src="src/js/admin_servicios.js"></script>
 </body>
 </html>

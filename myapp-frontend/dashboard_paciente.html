@@ -3,67 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Portal - Paciente</title>
+    <title>Mi Salud - Paciente</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
+    <link href="src/css/glass.css" rel="stylesheet">
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="p-6">
 
-    <!-- Navbar -->
-    <nav class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
-        <h1 class="text-xl font-bold">Portal del Paciente</h1>
+    <nav class="glass-panel p-4 rounded-xl flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold text-white">Mi Portal de Salud</h1>
         <div class="flex items-center gap-4">
-            <span id="userName" class="font-medium">Usuario</span>
-            <button onclick="logout()" class="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100 text-sm">Salir</button>
+            <span id="patientName" class="text-blue-200 font-medium">Hola, ...</span>
+            <button onclick="logout()" class="glass-button px-4 py-2 rounded-lg text-sm">Cerrar Sesión</button>
         </div>
     </nav>
 
-    <div class="container mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        <!-- Columna Tratamientos -->
-        <div class="space-y-6">
-            <!-- Tratamientos Activos -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold text-green-700 mb-4 border-b pb-2">Tratamientos Activos</h2>
-                <div id="tratamientosActivosList" class="space-y-4">
-                    <p class="text-gray-500 text-sm">Cargando...</p>
-                </div>
-            </div>
+    <div class="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <!-- Historial Tratamientos -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold text-gray-600 mb-4 border-b pb-2">Historial de Tratamientos</h2>
-                <div id="tratamientosHistorialList" class="space-y-4">
-                    <p class="text-gray-500 text-sm">Cargando...</p>
+        <!-- Historial de Tratamientos -->
+        <div class="glass-panel p-6 rounded-2xl">
+            <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                <div class="p-2 bg-blue-500/20 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 </div>
+                <h2 class="text-xl font-bold text-white">Mis Tratamientos</h2>
+            </div>
+            <div id="tratamientosList" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                <p class="text-blue-200">Cargando...</p>
             </div>
         </div>
 
-        <!-- Columna Citas -->
-        <div class="space-y-6">
-            <!-- Próximas Citas -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold text-blue-700 mb-4 border-b pb-2">Próximas Citas</h2>
-                <div id="citasFuturasList" class="space-y-4">
-                    <p class="text-gray-500 text-sm">Cargando...</p>
+        <!-- Próximas Citas -->
+        <div class="glass-panel p-6 rounded-2xl">
+            <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                <div class="p-2 bg-purple-500/20 rounded-lg">
+                    <svg class="w-6 h-6 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 </div>
+                <h2 class="text-xl font-bold text-white">Próximas Citas</h2>
             </div>
-
-            <!-- Historial Citas -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold text-gray-600 mb-4 border-b pb-2">Historial de Citas</h2>
-                <div id="citasHistorialList" class="space-y-4">
-                    <p class="text-gray-500 text-sm">Cargando...</p>
-                </div>
+            <div id="citasList" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                <p class="text-blue-200">Cargando...</p>
             </div>
         </div>
 
     </div>
 
     <script src="src/js/dashboard_paciente.js"></script>
-
 </body>
 </html>
