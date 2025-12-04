@@ -41,6 +41,12 @@
                         <input type="datetime-local" id="fecha" class="w-full p-2 border rounded" required>
                     </div>
                     <div>
+                        <label class="block text-sm font-medium text-gray-700">Servicio (Opcional)</label>
+                        <select id="servicioSelect" class="w-full p-2 border rounded">
+                            <option value="">Ninguno / Consulta General</option>
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-sm font-medium text-gray-700">Motivo</label>
                         <textarea id="motivo" rows="2" class="w-full p-2 border rounded" required></textarea>
                     </div>
@@ -61,70 +67,6 @@
 
     </div>
 
-    <script>
-        async function loadData() {
-            // Load Patients
-            const resPac = await fetch('http://localhost:3000/api/pacientes');
-            const pacientes = await resPac.json();
-            document.getElementById('pacienteSelect').innerHTML = '<option value="">Seleccionar Paciente...</option>' + 
-                pacientes.map(p => `<option value="${p.id_paciente}">${p.nombre_completo} (DNI: ${p.dni})</option>`).join('');
-
-            // Load Doctors
-            const resMed = await fetch('http://localhost:3000/api/medicos');
-            const medicos = await resMed.json();
-            document.getElementById('medicoSelect').innerHTML = '<option value="">Seleccionar Médico...</option>' + 
-                medicos.map(m => `<option value="${m.id_medico}">${m.nombre_completo} (${m.especialidad})</option>`).join('');
-
-            // Load Appointments
-            const resCitas = await fetch('http://localhost:3000/api/citas');
-            const citas = await resCitas.json();
-            document.getElementById('citasList').innerHTML = citas.length ? citas.map(c => `
-                <div class="p-3 border rounded hover:bg-gray-50 flex justify-between items-center">
-                    <div>
-                        <p class="font-bold text-gray-800">${new Date(c.fecha_hora).toLocaleString()}</p>
-                        <p class="text-sm text-gray-600">Pac: ${c.paciente} | Dr: ${c.medico}</p>
-                        <p class="text-xs text-gray-500 italic">"${c.motivo}"</p>
-                    </div>  
-                    <span class="text-xs px-2 py-1 rounded ${getStatusColor(c.estado)}">${c.estado}</span>
-                </div>
-            `).join('') : '<p class="text-gray-500">No hay citas registradas.</p>';
-        }
-
-        function getStatusColor(status) {
-            if(status === 'Pendiente') return 'bg-yellow-100 text-yellow-800';
-            if(status === 'Completada') return 'bg-blue-100 text-blue-800';
-            if(status === 'Facturada') return 'bg-green-100 text-green-800';
-            return 'bg-gray-100 text-gray-800';
-        }
-
-        document.getElementById('createCitaForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const body = {
-                id_paciente: document.getElementById('pacienteSelect').value,
-                id_medico: document.getElementById('medicoSelect').value,
-                fecha_hora: document.getElementById('fecha').value,
-                motivo: document.getElementById('motivo').value
-            };
-
-            try {
-                const res = await fetch('http://localhost:3000/api/citas', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                if(res.ok) {
-                    alert('Cita agendada');
-                    document.getElementById('createCitaForm').reset();
-                    loadData();
-                } else {
-                    alert('Error al agendar');
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        });
-
-        loadData();
-    </script>
+    <script src="src/js/admin_citas.js"> </script>
 </body>
 </html>

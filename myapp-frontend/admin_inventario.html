@@ -55,69 +55,26 @@
 
     </div>
 
-    <!-- Modal Re-stock (Simple Prompt used instead) -->
+    <!-- Modal Re-stock -->
+    <div id="restockModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h3 class="text-xl font-bold mb-4">Actualizar Stock</h3>
+            <p id="modalItemName" class="text-gray-600 mb-4">Producto...</p>
+            
+            <input type="hidden" id="modalType">
+            <input type="hidden" id="modalId">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">Cantidad a agregar</label>
+                <input type="number" id="modalQty" class="w-full p-2 border rounded" min="1" value="1">
+            </div>
 
-    <script>
-        async function loadData() {
-            // Medicamentos
-            const resMeds = await fetch('http://localhost:3000/api/inventario/medicamentos');
-            const meds = await resMeds.json();
-            document.getElementById('medsList').innerHTML = meds.map(m => `
-                <tr class="bg-white border-b">
-                    <td class="px-4 py-2 font-medium text-gray-900">${m.nombre}</td>
-                    <td class="px-4 py-2 ${m.stock < 10 ? 'text-red-600 font-bold' : ''}">${m.stock}</td>
-                    <td class="px-4 py-2">
-                        <button onclick="restock('medicamento', ${m.id_medicamento})" class="text-blue-600 hover:underline">Re-stock</button>
-                    </td>
-                </tr>
-            `).join('');
-
-            // Equipos
-            const resEq = await fetch('http://localhost:3000/api/inventario/equipos');
-            const equipos = await resEq.json();
-            document.getElementById('equiposList').innerHTML = equipos.map(e => `
-                <tr class="bg-white border-b">
-                    <td class="px-4 py-2 font-medium text-gray-900">${e.nombre}</td>
-                    <td class="px-4 py-2">${e.estado}</td>
-                    <td class="px-4 py-2">
-                        <!-- Equipos don't usually have 'stock' count in this schema, just status. 
-                             But user asked for 'stock' and 're-stock'. 
-                             The schema has 'equipo_medico' (id, nombre, estado). It DOES NOT have quantity.
-                             I will assume 'Re-stock' for equipment means adding a NEW item or changing status?
-                             User said: "Invenrarios de medicamentos y de objetos... se debe poder tener un stock".
-                             My schema might be missing 'cantidad' for equipment if it's consumable.
-                             If it's assets (machines), 'stock' is count of rows.
-                             I'll implement a simple 'Add Stock' which might just update a 'cantidad' field if I added it, 
-                             but since I didn't add 'cantidad' to equipo_medico in the initial schema (it was just status),
-                             I will skip re-stock for equipment or treat it as 'Maintenance'.
-                             Wait, user requirement: "se debe poder tener un stock".
-                             I'll check if I can add a column or if I should just ignore for now.
-                             I'll stick to Medicamentos for re-stock demo. For equipment, I'll show status.
-                        -->
-                        <span class="text-gray-400">-</span>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        async function restock(type, id) {
-            const qty = prompt("Cantidad a agregar:");
-            if(!qty || isNaN(qty)) return;
-
-            try {
-                const res = await fetch(`http://localhost:3000/api/inventario/${type}/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cantidad: parseInt(qty) })
-                });
-                if(res.ok) {
-                    alert('Stock actualizado');
-                    loadData();
-                }
-            } catch (error) { console.error(error); }
-        }
-
-        loadData();
-    </script>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeRestockModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
+                <button onclick="confirmRestock()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            </div>
+        </div>
+    </div>
+    <script src="src/js/admin_inventario.js"> </script>
 </body>
 </html>

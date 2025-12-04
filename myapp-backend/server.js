@@ -31,6 +31,56 @@ db.connect(err => {
         return;
     }
     console.log(`Conectado a la Base de Datos: ${database_config.database}`);
+
+    // Create Tables if not exist
+    const createServicioTable = `
+        CREATE TABLE IF NOT EXISTS servicio (
+            id_servicio INT AUTO_INCREMENT PRIMARY KEY,
+            nombre VARCHAR(100) NOT NULL,
+            descripcion TEXT,
+            costo DECIMAL(10, 2) NOT NULL
+        )
+    `;
+    db.query(createServicioTable, (err) => {
+        if (err) console.error('Error creando tabla servicio:', err);
+    });
+
+    // Add id_servicio to cita if not exists
+    const alterCita = "ALTER TABLE cita ADD COLUMN id_servicio INT";
+    db.query(alterCita, (err) => {
+        // Ignore error if column exists
+    });
+});
+
+// ==========================================
+// 0. SERVICIOS (Services Management)
+// ==========================================
+
+// Get All Services
+app.get('/api/servicios', (req, res) => {
+    db.query('SELECT * FROM servicio', (err, results) => {
+        if (err) return res.status(500).send(err);
+        res.json(results);
+    });
+});
+
+// Create Service
+app.post('/api/servicios', (req, res) => {
+    const { nombre, descripcion, costo } = req.body;
+    const sql = 'INSERT INTO servicio (nombre, descripcion, costo) VALUES (?, ?, ?)';
+    db.query(sql, [nombre, descripcion, costo], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: 'Servicio creado', id: result.insertId });
+    });
+});
+
+// Delete Service
+app.delete('/api/servicios/:id', (req, res) => {
+    const { id } = req.params;
+    db.query('DELETE FROM servicio WHERE id_servicio = ?', [id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.json({ message: 'Servicio eliminado' });
+    });
 });
 
 // ==========================================
@@ -208,9 +258,9 @@ app.put('/api/tratamientos/:id/estado', (req, res) => {
 
 // Create Appointment
 app.post('/api/citas', (req, res) => {
-    const { fecha_hora, motivo, id_paciente, id_medico, id_proceso } = req.body;
-    const sql = 'INSERT INTO cita (fecha_hora, motivo, id_paciente, id_medico, id_proceso) VALUES (?, ?, ?, ?, ?)';
-    db.query(sql, [fecha_hora, motivo, id_paciente, id_medico, id_proceso], (err, result) => {
+    const { fecha_hora, motivo, id_paciente, id_medico, id_proceso, id_servicio } = req.body;
+    const sql = 'INSERT INTO cita (fecha_hora, motivo, id_paciente, id_medico, id_proceso, id_servicio) VALUES (?, ?, ?, ?, ?, ?)';
+    db.query(sql, [fecha_hora, motivo, id_paciente, id_medico, id_proceso, id_servicio], (err, result) => {
         if (err) return res.status(500).send(err);
         res.json({ message: 'Cita agendada', id: result.insertId });
     });
@@ -220,10 +270,11 @@ app.post('/api/citas', (req, res) => {
 app.get('/api/citas', (req, res) => {
     const { id_medico, fecha } = req.query;
     let sql = `
-        SELECT c.*, p.nombre_completo as paciente, m.nombre_completo as medico 
+        SELECT c.*, p.nombre_completo as paciente, m.nombre_completo as medico, s.nombre as servicio
         FROM cita c
         JOIN paciente p ON c.id_paciente = p.id_paciente
         JOIN medico m ON c.id_medico = m.id_medico
+        LEFT JOIN servicio s ON c.id_servicio = s.id_servicio
         WHERE 1=1
     `;
     const params = [];

@@ -76,20 +76,28 @@
                 <p class="text-gray-500 mt-2 text-sm">Medicamentos, equipos y re-stock.</p>
             </div>
 
+            <!-- Card: Servicios -->
+            <div onclick="window.location.href='admin_servicios.html'" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition cursor-pointer border-l-4 border-indigo-500 group">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600">Servicios</h3>
+                    <span class="text-3xl">📋</span>
+                </div>
+                <p class="text-gray-500 mt-2 text-sm">Gestionar catálogo de servicios médicos.</p>
+            </div>
+
+            <!-- Card: Laboratorio -->
+            <div onclick="window.location.href='laboratorio.html'" class="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition cursor-pointer border-l-4 border-pink-500 group">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-bold text-gray-800 group-hover:text-pink-600">Laboratorio</h3>
+                    <span class="text-3xl">🧪</span>
+                </div>
+                <p class="text-gray-500 mt-2 text-sm">Órdenes de laboratorio y resultados.</p>
+            </div>
+
         </div>
     </div>
 
-    <script>
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || user.rol !== 'Administrador') { // Check role
-             // window.location.href = 'login.html'; // Uncomment in prod
-        }
-
-        function logout() {
-            localStorage.removeItem('user');
-            window.location.href = 'login.html';
-        }
-    </script>
+    <script src="src/js/dashboard_admin.js"> </script>
 
 </body>
 </html>
